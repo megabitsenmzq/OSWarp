@@ -4,7 +4,7 @@ set -euo pipefail
 self=$(readlink -f "$0")
 cd "$(dirname "$self")"
 if [ "$(id -u)" -ne 0 ]; then
-  exec sudo --preserve-env=XDG_CURRENT_DESKTOP "$self" "$@"
+  exec sudo --preserve-env=XDG_CURRENT_DESKTOP,XDG_RUNTIME_DIR,DBUS_SESSION_BUS_ADDRESS "$self" "$@"
 fi
 
 install_pkgs() {
@@ -59,6 +59,7 @@ if [ "${#need[@]}" -gt 0 ]; then
 fi
 
 install -d /usr/local/share/oswarp
+rm -rf /usr/local/share/oswarp/oswarp
 cp -r --no-preserve=ownership oswarp /usr/local/share/oswarp/
 cp --no-preserve=ownership Icon.png /usr/local/share/oswarp/Icon.png
 chown -R root:root /usr/local/share/oswarp
@@ -69,4 +70,9 @@ install -d /usr/local/share/applications /usr/share/polkit-1/actions
 cp oswarp.desktop /usr/local/share/applications/oswarp.desktop
 cp com.oswarp.policy /usr/share/polkit-1/actions/com.oswarp.policy
 chmod 644 /usr/local/share/applications/oswarp.desktop /usr/share/polkit-1/actions/com.oswarp.policy
+if command -v kbuildsycoca6 >/dev/null 2>&1 && [ -n "${SUDO_USER:-}" ]; then
+  if ! sudo -u "$SUDO_USER" --preserve-env=XDG_RUNTIME_DIR,DBUS_SESSION_BUS_ADDRESS kbuildsycoca6 --noincremental; then
+    echo "If OSWarp does not appear in the application menu, refresh the cache manually."
+  fi
+fi
 echo "Installed. Open OSWarp from the application menu, or run oswarp."
