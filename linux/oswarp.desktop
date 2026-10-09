@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=OSWarp
+Comment=Warp to another OS.
+Exec=/usr/local/bin/oswarp
+Icon=/usr/local/share/oswarp/Icon.png
+Terminal=false
+Type=Application
+Categories=System;
