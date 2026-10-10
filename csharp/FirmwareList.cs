@@ -6,6 +6,13 @@ using System.Text.RegularExpressions;
 
 namespace OSWarp
 {
+    public sealed class TargetSettings
+    {
+        public string Boot = "";
+        public string SavedId = "";
+        public string Error = "";
+    }
+
     public sealed class FirmwareEntry
     {
         public string Id = "";
@@ -413,7 +420,7 @@ namespace OSWarp
             int count = 0;
             foreach (FirmwareEntry entry in entries)
             {
-                if (MatchesHint(entry.Hint, hint))
+                if (entry.Hint == hint)
                 {
                     found = entry;
                     count++;
@@ -424,16 +431,7 @@ namespace OSWarp
             return null;
         }
 
-        // Windows asks for Linux. A single OpenBSD or FreeBSD entry is the same kind of choice.
-        // Two of Linux, OpenBSD, and FreeBSD are not guessed.
-        static bool MatchesHint(string entryHint, string want)
-        {
-            if (entryHint == want)
-                return true;
-            return want == "Linux" && (entryHint == "OpenBSD" || entryHint == "FreeBSD");
-        }
-
-        public static string TargetPath()
+        public static string TargetConfigPath()
         {
             return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
@@ -441,36 +439,185 @@ namespace OSWarp
                 "target.txt");
         }
 
-        public static string LoadSavedId()
+        public static bool OneShotIsSet(string text)
+        {
+            var order = new List<string>();
+            string sequence;
+            ReadManager(text, order, out sequence);
+            return sequence.Length > 0;
+        }
+
+        public static TargetSettings LoadTarget()
+        {
+            return LoadTarget(TargetConfigPath());
+        }
+
+        public static TargetSettings LoadTarget(string path)
+        {
+            var result = new TargetSettings();
+            string text;
+            try
+            {
+                text = File.ReadAllText(path);
+            }
+            catch (DirectoryNotFoundException)
+            {
+                // The OSWarp directory is created by SaveTarget. A missing directory
+                // is not a FileNotFoundException, and it is not a broken file.
+                return result;
+            }
+            catch (FileNotFoundException)
+            {
+                return result;
+            }
+            catch (IOException ex)
+            {
+                result.Error = SettingsError(path, ex.Message);
+                return result;
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                result.Error = SettingsError(path, ex.Message);
+                return result;
+            }
+            text = text.Replace("\r\n", "\n").Replace("\r", "\n");
+            if (text.EndsWith("\n"))
+                text = text.Substring(0, text.Length - 1);
+            var lines = new List<string>();
+            foreach (string raw in text.Split('\n'))
+            {
+                string line = raw.Trim();
+                if (line.Length == 0)
+                    continue;
+                lines.Add(line);
+            }
+            if (lines.Count == 0)
+                return result;
+            if (lines.Count == 1 && lines[0].IndexOf('=') < 0)
+            {
+                if (ValidId(lines[0]))
+                {
+                    result.SavedId = lines[0];
+                    return result;
+                }
+                result.Error = SettingsError(path, "");
+                return result;
+            }
+            bool sawBoot = false;
+            bool sawId = false;
+            foreach (string line in lines)
+            {
+                int split = line.IndexOf('=');
+                if (split < 1)
+                {
+                    result.Error = SettingsError(path, "");
+                    return result;
+                }
+                string key = line.Substring(0, split);
+                string value = line.Substring(split + 1);
+                if (key == "boot")
+                {
+                    value = value.ToLowerInvariant();
+                    if (sawBoot || (value != "bootorder" && value != "bootnext"))
+                    {
+                        result.Error = SettingsError(path, "");
+                        return result;
+                    }
+                    sawBoot = true;
+                    result.Boot = value;
+                }
+                else if (key == "id")
+                {
+                    if (sawId || !ValidId(value))
+                    {
+                        result.Error = SettingsError(path, "");
+                        return result;
+                    }
+                    sawId = true;
+                    result.SavedId = value;
+                }
+                else
+                {
+                    result.Error = SettingsError(path, "");
+                    return result;
+                }
+            }
+            return result;
+        }
+
+        public static void SaveTarget(string boot, string savedId)
+        {
+            if (boot != "bootorder" && boot != "bootnext")
+                throw new InvalidDataException("The boot setting is not valid.");
+            var text = new StringBuilder();
+            text.Append("boot=");
+            text.Append(boot);
+            text.Append("\r\n");
+            if (!string.IsNullOrEmpty(savedId))
+            {
+                if (!ValidId(savedId))
+                    throw new InvalidDataException("The boot entry id is not valid.");
+                text.Append("id=");
+                text.Append(savedId);
+                text.Append("\r\n");
+            }
+            string path = TargetConfigPath();
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            File.WriteAllText(path, text.ToString());
+        }
+
+        public static byte[] BackupTarget()
+        {
+            return BackupTarget(TargetConfigPath());
+        }
+
+        // A null backup means the file did not exist; restoring it deletes the file again.
+        public static byte[] BackupTarget(string path)
         {
             try
             {
-                string text = File.ReadAllText(TargetPath());
-                string[] lines = text.Replace("\r\n", "\n").Split('\n');
-                if (lines.Length == 0)
-                    return "";
-                string id = lines[0].Trim();
-                if (!ValidId(id))
-                    return "";
-                return id;
+                return File.ReadAllBytes(path);
             }
-            catch (IOException)
+            catch (FileNotFoundException)
             {
-                return "";
+                return null;
             }
-            catch (UnauthorizedAccessException)
+            catch (DirectoryNotFoundException)
             {
-                return "";
+                return null;
             }
         }
 
-        public static void SaveId(string id)
+        public static void RestoreTarget(byte[] backup)
         {
-            if (!ValidId(id))
-                throw new InvalidDataException("The boot entry id is not valid.");
-            string path = TargetPath();
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
-            File.WriteAllText(path, id + "\r\n");
+            RestoreTarget(TargetConfigPath(), backup);
+        }
+
+        public static void RestoreTarget(string path, byte[] backup)
+        {
+            try
+            {
+                if (backup == null)
+                {
+                    File.Delete(path);
+                }
+                else
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.WriteAllBytes(path, backup);
+                }
+            }
+            catch (Exception)
+            {
+            }
+        }
+
+        static string SettingsError(string path, string detail)
+        {
+            string text = "The settings file could not be read.\n" + path + "\nUse boot=bootorder or boot=bootnext.";
+            if (!string.IsNullOrEmpty(detail))
+                text += "\n" + detail;
+            return text;
         }
 
         public static string Hint(string title, string path)
@@ -483,7 +630,6 @@ namespace OSWarp
 
         // Windows is \EFI\Microsoft\ or bootmgfw.efi.
         // Linux is shim*.efi, grub*.efi, or systemd-boot*.efi.
-        // OpenBSD is \EFI\OPENBSD\. FreeBSD is \EFI\freebsd\.
         // The shared \EFI\BOOT\BOOTX64.EFI fallback is neither.
         static string Classify(string text)
         {
@@ -492,10 +638,6 @@ namespace OSWarp
             string folded = text.Replace('/', '\\').ToLowerInvariant();
             if (folded.Contains("\\efi\\microsoft\\") || folded.StartsWith("efi\\microsoft\\"))
                 return "Windows";
-            if (folded.Contains("\\efi\\openbsd\\") || folded.StartsWith("efi\\openbsd\\"))
-                return "OpenBSD";
-            if (folded.Contains("\\efi\\freebsd\\") || folded.StartsWith("efi\\freebsd\\"))
-                return "FreeBSD";
             string file = LoaderFile(folded);
             if (file.Equals("bootmgfw.efi"))
                 return "Windows";

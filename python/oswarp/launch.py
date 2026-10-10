@@ -7,28 +7,64 @@ import shutil
 import sys
 from pathlib import Path
 
-from oswarp.actions import ActionError, reboot, set_boot_order, set_bootnext
+from oswarp.actions import ActionError, clear_bootnext, reboot, set_boot_order, set_bootnext
+from oswarp.target import BOOT_NEXT, BOOT_ORDER
+
+
+_DIALOG_TOOLS = ("kdialog", "zenity", "yad")
 
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv if argv is None else argv)
-    boot_id = _pkexec_boot_id(argv[1:])
-    if boot_id is not None:
-        return commit(boot_id)
+    request = _pkexec_boot(argv[1:])
+    if request is not None:
+        return commit(request[0], request[1])
     from oswarp.gui import run_gui
 
-    return run_gui()
+    return run_gui(_requested_dialog(argv[1:]))
 
 
-def commit(boot_id: str) -> int:
-    """Move this entry first, set this reboot, and reboot."""
+def _requested_dialog(args: list[str]) -> str | None:
+    """Check whether a dialog tool was passed in."""
+    if len(args) == 1 and args[0] in _DIALOG_TOOLS:
+        return args[0]
+    return None
+
+
+def commit(boot_id: str, boot: str) -> int:
+    """Change the chosen firmware setting, then reboot."""
+    if boot == BOOT_NEXT:
+        try:
+            set_bootnext(boot_id)
+        except ActionError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        try:
+            reboot()
+        except ActionError as exc:
+            print(
+                "The next boot was changed, but the reboot did not happen.\n" + str(exc),
+                file=sys.stderr,
+            )
+            return 1
+        return 0
+    if boot != BOOT_ORDER:
+        print("The boot setting is not valid.", file=sys.stderr)
+        return 1
     try:
         set_boot_order(boot_id)
     except ActionError as exc:
         print(str(exc), file=sys.stderr)
         return 1
     try:
-        set_bootnext(boot_id)
+        clear_bootnext()
+    except ActionError as exc:
+        print(
+            "The boot order was changed, but the next-boot setting could not be cleared.\n" + str(exc),
+            file=sys.stderr,
+        )
+        return 1
+    try:
         reboot()
     except ActionError as exc:
         print(
@@ -39,10 +75,10 @@ def commit(boot_id: str) -> int:
     return 0
 
 
-def _pkexec_boot_id(args: list[str]) -> str | None:
-    """The window passes one boot id through pkexec."""
-    if os.geteuid() == 0 and os.environ.get("PKEXEC_UID") and len(args) == 1:
-        return args[0]
+def _pkexec_boot(args: list[str]) -> tuple[str, str] | None:
+    if os.geteuid() == 0 and os.environ.get("PKEXEC_UID") and len(args) == 2:
+        if args[1] in (BOOT_ORDER, BOOT_NEXT):
+            return args[0], args[1]
     return None
 
 
@@ -63,7 +99,7 @@ def pkexec_bin() -> str:
     return found
 
 
-def _ensure_executable(path: Path) -> None:
+def ensure_executable(path: Path) -> None:
     if os.access(path, os.X_OK):
         return
     try:
@@ -72,7 +108,7 @@ def _ensure_executable(path: Path) -> None:
         pass
 
 
-def _helper_path() -> Path:
+def helper_path() -> Path:
     local = Path(__file__).resolve().parents[1] / "run.sh"
     if local.is_file():
         return local

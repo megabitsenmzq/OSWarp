@@ -60,8 +60,8 @@ fi
 
 install -d /usr/local/share/oswarp
 rm -rf /usr/local/share/oswarp/oswarp
-cp -r --no-preserve=ownership oswarp /usr/local/share/oswarp/
-cp --no-preserve=ownership Icon.png /usr/local/share/oswarp/Icon.png
+cp -r oswarp /usr/local/share/oswarp/
+cp Icon.png /usr/local/share/oswarp/Icon.png
 chown -R root:root /usr/local/share/oswarp
 chmod -R u=rwX,go=rX /usr/local/share/oswarp
 install -d /usr/local/bin

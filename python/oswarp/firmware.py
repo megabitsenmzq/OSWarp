@@ -114,10 +114,6 @@ def _classify(text: str) -> str:
     folded = text.replace("/", "\\").lower()
     if "\\efi\\microsoft\\" in folded or folded.startswith("efi\\microsoft\\"):
         return "Windows"
-    if "\\efi\\openbsd\\" in folded or folded.startswith("efi\\openbsd\\"):
-        return "OpenBSD"
-    if "\\efi\\freebsd\\" in folded or folded.startswith("efi\\freebsd\\"):
-        return "FreeBSD"
     file_name = _loader_file(folded)
     if file_name == "bootmgfw.efi":
         return "Windows"

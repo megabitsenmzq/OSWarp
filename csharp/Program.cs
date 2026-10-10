@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Tasks;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -21,13 +22,36 @@ namespace OSWarp
 
         static void Run()
         {
+            TargetSettings settings = FirmwareList.LoadTarget();
+            if (settings.Error.Length > 0)
+            {
+                Alert(settings.Error);
+                return;
+            }
+            if (settings.Boot.Length == 0)
+            {
+                string chosen = Prompt.AskBoot(IntPtr.Zero);
+                if (chosen == null)
+                    return;
+                try
+                {
+                    FirmwareList.SaveTarget(chosen, settings.SavedId);
+                }
+                catch (Exception ex)
+                {
+                    Alert("The settings file could not be written.\n" + FirmwareList.TargetConfigPath() + "\n" + ex.Message);
+                    return;
+                }
+                settings.Boot = chosen;
+            }
+            Boot.Mode = settings.Boot;
             string error = Boot.Load();
             if (error != null)
             {
                 Alert(error);
                 return;
             }
-            FirmwareEntry target = FirmwareList.Resolve(Boot.Entries, FirmwareList.LoadSavedId(), "Linux");
+            FirmwareEntry target = FirmwareList.Resolve(Boot.Entries, settings.SavedId, "Linux");
             if (target == null)
             {
                 MainForm.ShowList(false);
@@ -37,7 +61,7 @@ namespace OSWarp
             {
                 int choice = Prompt.Ask(
                     "Reboot to " + target.Title + "?",
-                    "This will change the default boot order.");
+                    Boot.Effect());
                 if (choice == Prompt.Pick)
                 {
                     if (!MainForm.ShowList(true))
@@ -49,7 +73,7 @@ namespace OSWarp
                         return;
                     }
                     FirmwareEntry again = FirmwareList.Resolve(
-                        Boot.Entries, FirmwareList.LoadSavedId(), "Linux");
+                        Boot.Entries, settings.SavedId, "Linux");
                     if (again == null)
                     {
                         MainForm.ShowList(false);
@@ -60,7 +84,7 @@ namespace OSWarp
                 }
                 if (choice != Prompt.Reboot)
                     return;
-                if (Boot.Order.Count == 0)
+                if (Boot.Mode == "bootorder" && Boot.Order.Count == 0)
                 {
                     Alert("Could not read the full boot order. Nothing was changed.");
                     continue;
@@ -80,13 +104,23 @@ namespace OSWarp
 
     static class Boot
     {
+        public static string Mode = "";
+        public static bool HasOneShot;
         public static List<FirmwareEntry> Entries = new List<FirmwareEntry>();
         public static List<string> Order = new List<string>();
+
+        public static string Effect()
+        {
+            if (Mode == "bootnext")
+                return "This will change only the next boot.";
+            return "This will change the default boot order.";
+        }
 
         public static string Load()
         {
             Entries = new List<FirmwareEntry>();
             Order = new List<string>();
+            HasOneShot = false;
             try
             {
                 string text = RunBcdedit("/enum firmware");
@@ -94,10 +128,10 @@ namespace OSWarp
                 try
                 {
                     Order = FirmwareList.ParseDisplayOrder(text);
+                    HasOneShot = FirmwareList.OneShotIsSet(text);
                 }
                 catch (InvalidDataException)
                 {
-                    Order = new List<string>();
                 }
                 if (Entries.Count == 0)
                     return EmptyEntries(text);
@@ -111,6 +145,20 @@ namespace OSWarp
 
         public static string Commit(FirmwareEntry entry)
         {
+            if (Mode != "bootorder" && Mode != "bootnext")
+                return "The boot setting is not valid.";
+            byte[] backup;
+            string remembered = RememberChoice(entry, out backup);
+            if (remembered != null)
+                return remembered;
+            string failure = Mode == "bootnext" ? CommitNext(entry) : CommitOrder(entry);
+            if (failure != null)
+                FirmwareList.RestoreTarget(backup);
+            return failure;
+        }
+
+        static string CommitOrder(FirmwareEntry entry)
+        {
             try
             {
                 string[] next = FirmwareList.OrderWith(Order, entry.Id);
@@ -120,16 +168,19 @@ namespace OSWarp
             {
                 return "Did not reboot.\n" + ex.Message;
             }
+            if (HasOneShot)
+            {
+                try
+                {
+                    RunBcdedit("/deletevalue {fwbootmgr} bootsequence");
+                }
+                catch (Exception ex)
+                {
+                    return "The boot order was changed, but the next-boot setting could not be cleared.\n" + ex.Message;
+                }
+            }
             try
             {
-                FirmwareList.SaveId(entry.Id);
-            }
-            catch (Exception)
-            {
-            }
-            try
-            {
-                RunBcdedit("/set {fwbootmgr} bootsequence " + entry.Id);
                 Reboot();
                 return null;
             }
@@ -137,6 +188,49 @@ namespace OSWarp
             {
                 return "The boot order was changed, but the reboot did not happen.\n" + ex.Message;
             }
+        }
+
+        static string CommitNext(FirmwareEntry entry)
+        {
+            try
+            {
+                RunBcdedit("/set {fwbootmgr} bootsequence " + entry.Id);
+            }
+            catch (Exception ex)
+            {
+                return "Did not reboot.\n" + ex.Message;
+            }
+            try
+            {
+                Reboot();
+                return null;
+            }
+            catch (Exception ex)
+            {
+                return "The next boot was changed, but the reboot did not happen.\n" + ex.Message;
+            }
+        }
+
+        // Save the chosen entry, keeping a backup so a failed commit can be rolled back.
+        static string RememberChoice(FirmwareEntry entry, out byte[] backup)
+        {
+            try
+            {
+                backup = FirmwareList.BackupTarget();
+            }
+            catch (Exception ex)
+            {
+                backup = null;
+                return "Did not reboot.\nThe settings file could not be read.\n" + FirmwareList.TargetConfigPath() + "\n" + ex.Message;
+            }
+            try
+            {
+                FirmwareList.SaveTarget(Mode, entry.Id);
+            }
+            catch (Exception)
+            {
+            }
+            return null;
         }
 
         static string RunBcdedit(string arguments)
@@ -154,8 +248,10 @@ namespace OSWarp
             start.StandardErrorEncoding = raw;
             using (Process process = Process.Start(start))
             {
-                string stdoutRaw = process.StandardOutput.ReadToEnd();
+                // Read both pipes at once so a full stderr buffer cannot block the process.
+                Task<string> stdoutTask = Task.Run(() => process.StandardOutput.ReadToEnd());
                 string stderrRaw = process.StandardError.ReadToEnd();
+                string stdoutRaw = stdoutTask.Result;
                 process.WaitForExit();
                 string stdout = FirmwareList.DecodeOutput(raw.GetBytes(stdoutRaw));
                 string stderr = FirmwareList.DecodeOutput(raw.GetBytes(stderrRaw));
@@ -193,18 +289,12 @@ namespace OSWarp
         public const int Cancel = 2;
         public const int Reboot = 100;
         public const int Pick = 101;
+        public const int OrderChoice = 110;
+        public const int NextChoice = 111;
         const int AllowCancel = 0x0008;
         const int UseMainIcon = 0x0002;
 
         public static int Ask(string instruction, string content)
-        {
-            using (Icon icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath))
-            {
-                return AskWithIcon(instruction, content, icon);
-            }
-        }
-
-        static int AskWithIcon(string instruction, string content, Icon icon)
         {
             TaskDialogButton[] buttons = new TaskDialogButton[3];
             buttons[0].Id = Reboot;
@@ -213,7 +303,47 @@ namespace OSWarp
             buttons[1].Text = "Choose entry";
             buttons[2].Id = Cancel;
             buttons[2].Text = "Cancel";
+            using (Icon icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath))
+            {
+                return AskWithIcon(instruction, content, icon, buttons, Reboot, IntPtr.Zero);
+            }
+        }
 
+        public static string AskBoot(IntPtr owner)
+        {
+            TaskDialogButton[] buttons = new TaskDialogButton[3];
+            buttons[0].Id = OrderChoice;
+            buttons[0].Text = "Permanent boot order";
+            buttons[1].Id = NextChoice;
+            buttons[1].Text = "Next boot only";
+            buttons[2].Id = Cancel;
+            buttons[2].Text = "Cancel";
+            int choice;
+            using (Icon icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath))
+            {
+                choice = AskWithIcon(
+                    "Change the permanent boot order, or only the next boot?",
+                    null,
+                    icon,
+                    buttons,
+                    OrderChoice,
+                    owner);
+            }
+            if (choice == OrderChoice)
+                return "bootorder";
+            if (choice == NextChoice)
+                return "bootnext";
+            return null;
+        }
+
+        static int AskWithIcon(
+            string instruction,
+            string content,
+            Icon icon,
+            TaskDialogButton[] buttons,
+            int defaultButton,
+            IntPtr owner)
+        {
             int size = Marshal.SizeOf(typeof(TaskDialogButton));
             IntPtr buffer = Marshal.AllocHGlobal(size * buttons.Length);
             int written = 0;
@@ -235,7 +365,8 @@ namespace OSWarp
                 config.pszContent = content;
                 config.cButtons = (uint)buttons.Length;
                 config.pButtons = buffer;
-                config.nDefaultButton = Reboot;
+                config.hwndParent = owner;
+                config.nDefaultButton = defaultButton;
 
                 int button;
                 int radio;

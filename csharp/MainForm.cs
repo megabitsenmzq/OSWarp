@@ -9,7 +9,9 @@ namespace OSWarp
         readonly Label listInfo = new Label();
         readonly ListView list = new ListView();
         readonly Label listStatus = new Label();
-        readonly FlowLayoutPanel listButtons = new FlowLayoutPanel();
+        readonly TableLayoutPanel listButtons = new TableLayoutPanel();
+        readonly FlowLayoutPanel actionButtons = new FlowLayoutPanel();
+        readonly Button bootButton = new Button();
         readonly Button okButton = new Button();
         readonly Button backButton = new Button();
 
@@ -71,7 +73,7 @@ namespace OSWarp
             listInfo.AutoSize = true;
             listInfo.Dock = DockStyle.Top;
             listInfo.Padding = new Padding(0, 0, 0, 12);
-            listInfo.Text = "Choose the correct boot entry.";
+            listInfo.Text = ListIntro();
 
             list.Dock = DockStyle.Fill;
             list.View = View.Details;
@@ -89,13 +91,24 @@ namespace OSWarp
 
             listButtons.Dock = DockStyle.Bottom;
             listButtons.AutoSize = true;
-            listButtons.WrapContents = false;
+            listButtons.ColumnCount = 2;
+            listButtons.RowCount = 1;
             listButtons.Padding = new Padding(0, 12, 0, 0);
+            listButtons.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            listButtons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
 
+            bootButton.Text = "Boot method";
+            bootButton.AutoSize = true;
+            bootButton.Anchor = AnchorStyles.Left;
+            bootButton.Click += ChangeBoot;
+
+            actionButtons.AutoSize = true;
+            actionButtons.WrapContents = false;
+            actionButtons.FlowDirection = FlowDirection.RightToLeft;
+            actionButtons.Anchor = AnchorStyles.Right;
             okButton.Text = "OK";
             okButton.AutoSize = true;
             okButton.Enabled = false;
-            okButton.Margin = new Padding(0, 0, 8, 0);
             okButton.Click += ConfirmPick;
             backButton.Text = canReturn ? "Back" : "Quit";
             backButton.AutoSize = true;
@@ -106,8 +119,16 @@ namespace OSWarp
             Controls.Add(listInfo);
             Controls.Add(listStatus);
             Controls.Add(listButtons);
-            listButtons.Controls.Add(okButton);
-            listButtons.Controls.Add(backButton);
+            listButtons.Controls.Add(bootButton, 0, 0);
+            listButtons.Controls.Add(actionButtons, 1, 0);
+            actionButtons.Controls.Add(backButton);
+            actionButtons.Controls.Add(okButton);
+        }
+
+        static string ListIntro()
+        {
+            string hint = Boot.Mode == "bootnext" ? "Next boot only" : "Permanent boot order";
+            return "Choose the correct boot entry. (" + hint + ")";
         }
 
         void Fill()
@@ -143,7 +164,9 @@ namespace OSWarp
 
         void ConfirmPick(object sender, EventArgs e)
         {
-            if (busy || list.SelectedItems.Count != 1 || Boot.Order.Count == 0)
+            if (busy || list.SelectedItems.Count != 1)
+                return;
+            if (Boot.Mode == "bootorder" && Boot.Order.Count == 0)
                 return;
             FirmwareEntry entry = list.SelectedItems[0].Tag as FirmwareEntry;
             if (entry == null || !FirmwareList.ValidId(entry.Id))
@@ -151,6 +174,7 @@ namespace OSWarp
             busy = true;
             okButton.Enabled = false;
             backButton.Enabled = false;
+            bootButton.Enabled = false;
             listStatus.Text = "";
             string failure = Boot.Commit(entry);
             if (failure == null)
@@ -162,9 +186,37 @@ namespace OSWarp
             }
             busy = false;
             backButton.Enabled = true;
+            bootButton.Enabled = true;
             UpdatePickButton();
             listStatus.Text = "";
             Program.Alert(failure);
+        }
+
+        void ChangeBoot(object sender, EventArgs e)
+        {
+            if (busy)
+                return;
+            string chosen = Prompt.AskBoot(Handle);
+            if (chosen == null)
+                return;
+            TargetSettings settings = FirmwareList.LoadTarget();
+            if (settings.Error.Length > 0)
+            {
+                Program.Alert(settings.Error);
+                return;
+            }
+            try
+            {
+                FirmwareList.SaveTarget(chosen, settings.SavedId);
+            }
+            catch (Exception ex)
+            {
+                Program.Alert("The settings file could not be written.\n" + FirmwareList.TargetConfigPath() + "\n" + ex.Message);
+                return;
+            }
+            Boot.Mode = chosen;
+            listInfo.Text = ListIntro();
+            UpdatePickButton();
         }
 
         void BackFromList(object sender, EventArgs e)
@@ -180,10 +232,11 @@ namespace OSWarp
 
         void UpdatePickButton()
         {
-            okButton.Enabled = list.SelectedItems.Count == 1 && Boot.Order.Count > 0 && !busy;
+            bool orderReady = Boot.Mode != "bootorder" || Boot.Order.Count > 0;
+            okButton.Enabled = list.SelectedItems.Count == 1 && orderReady && !busy;
             if (busy)
                 return;
-            listStatus.Text = Boot.Order.Count == 0
+            listStatus.Text = Boot.Mode == "bootorder" && Boot.Order.Count == 0
                 ? "Could not read the full boot order. Nothing was changed."
                 : "";
         }
