@@ -79,7 +79,7 @@ namespace OSWarp
                 }
                 if (choice != Prompt.Reboot)
                     return;
-                if (Boot.Mode == "bootorder" && Boot.Order.Count == 0)
+                if (Boot.Mode == "bootorder" && (Boot.Order.Count == 0 || !Boot.OrderComplete))
                 {
                     Prompt.Alert("Could not read the full boot order. Nothing was changed.");
                     continue;

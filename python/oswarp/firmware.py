@@ -125,5 +125,8 @@ def _classify(text: str) -> str:
 
 
 def _loader_file(folded: str) -> str:
-    file_name = folded.rsplit("\\", 1)[-1]
+    # efibootmgr -v prints ...File(\EFI\ubuntu\shimx64.efi); drop the wrapper.
+    match = re.search(r"file\(([^)]*)\)", folded)
+    target = match.group(1) if match else folded
+    file_name = target.rsplit("\\", 1)[-1]
     return file_name.split(" ", 1)[0]

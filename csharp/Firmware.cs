@@ -21,6 +21,8 @@ namespace OSWarp
         public List<FirmwareEntry> Entries = new List<FirmwareEntry>();
         public List<string> Order = new List<string>();
         public bool HasOneShot;
+        // False when displayorder held an id we could not read or recognize.
+        public bool OrderComplete = true;
     }
 
     static class Firmware
@@ -52,10 +54,13 @@ namespace OSWarp
             using (ManagementObject store = OpenAt(scope, "BcdStore.FilePath=\"\""))
                 using (ManagementObject manager = OpenObject(scope, store, ManagerId))
                 {
+                    bool complete;
                     using (ManagementBaseObject displayOrder = Element(manager, DisplayOrderType))
-                        catalog.Order = IdsOf(displayOrder);
+                        catalog.Order = IdsOf(displayOrder, out complete);
+                    catalog.OrderComplete = complete;
+                    bool ignored;
                     using (ManagementBaseObject bootSequence = Element(manager, BootSequenceType))
-                        catalog.HasOneShot = IdsOf(bootSequence).Count > 0;
+                        catalog.HasOneShot = IdsOf(bootSequence, out ignored).Count > 0;
                     foreach (string id in catalog.Order)
                     {
                         // Keep an unreadable entry out of Entries, but leave its id
@@ -141,8 +146,9 @@ namespace OSWarp
             return located;
         }
 
-        static List<string> IdsOf(ManagementBaseObject element)
+        static List<string> IdsOf(ManagementBaseObject element, out bool complete)
         {
+            complete = true;
             var ids = new List<string>();
             if (element == null)
                 return ids;
@@ -153,22 +159,29 @@ namespace OSWarp
             }
             catch (ManagementException)
             {
+                complete = false;
                 return ids;
             }
             catch (COMException)
             {
+                complete = false;
                 return ids;
             }
             if (value == null || value is string)
                 return ids;
             IEnumerable enumerable = value as IEnumerable;
             if (enumerable == null)
+            {
+                complete = false;
                 return ids;
+            }
             foreach (object item in enumerable)
             {
                 string id = item as string;
                 if (!string.IsNullOrEmpty(id) && ValidId(id))
                     ids.Add(id);
+                else
+                    complete = false;
             }
             return ids;
         }

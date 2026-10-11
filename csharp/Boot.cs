@@ -7,6 +7,7 @@ namespace OSWarp
     {
         public static string Mode = "";
         public static bool HasOneShot;
+        public static bool OrderComplete = true;
         public static List<FirmwareEntry> Entries = new List<FirmwareEntry>();
         public static List<string> Order = new List<string>();
 
@@ -15,12 +16,14 @@ namespace OSWarp
             Entries = new List<FirmwareEntry>();
             Order = new List<string>();
             HasOneShot = false;
+            OrderComplete = true;
             try
             {
                 FirmwareCatalog catalog = Firmware.Catalog();
                 Entries = catalog.Entries;
                 Order = catalog.Order;
                 HasOneShot = catalog.HasOneShot;
+                OrderComplete = catalog.OrderComplete;
                 if (Entries.Count == 0)
                     return "No firmware boot entries.";
                 return null;
@@ -36,6 +39,8 @@ namespace OSWarp
         {
             if (Mode != "bootorder" && Mode != "bootnext")
                 return "The boot setting is not valid.";
+            if (Mode == "bootorder" && (Order.Count == 0 || !OrderComplete))
+                return "Could not read the full boot order. Nothing was changed.";
             try
             {
                 Config.Save(Mode, entry.Id);

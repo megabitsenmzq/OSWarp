@@ -44,7 +44,23 @@ namespace OSWarp
             start.FileName = Path.Combine(Environment.SystemDirectory, "shutdown.exe");
             start.Arguments = "/r /t 0";
             start.UseShellExecute = false;
-            Process.Start(start);
+            start.CreateNoWindow = true;
+            start.RedirectStandardError = true;
+            using (Process process = Process.Start(start))
+            {
+                if (process == null)
+                    throw new IOException("Could not start shutdown.exe.");
+                // Still running after the wait means the restart is under way.
+                if (!process.WaitForExit(15000))
+                    return;
+                if (process.ExitCode != 0)
+                {
+                    string detail = process.StandardError.ReadToEnd().Trim();
+                    throw new IOException(detail.Length > 0
+                        ? detail
+                        : "shutdown.exe failed with exit code " + process.ExitCode + ".");
+                }
+            }
         }
     }
 }

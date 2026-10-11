@@ -67,6 +67,7 @@ def confirm_argv(tool: str, text: str) -> list[str]:
     return [
         tool,
         "--question",
+        "--no-markup",
         "--title",
         "OSWarp",
         *_icon_args(tool),
@@ -169,7 +170,9 @@ def list_argv(
             ]
         )
     else:
-        command.extend(["--ok-label", "OK", "--cancel-label", cancel, "--hide-header"])
+        command.extend(
+            ["--no-markup", "--ok-label", "OK", "--cancel-label", cancel, "--hide-header"]
+        )
     for row_id, label in rows:
         command.extend([row_id, label])
     return command
@@ -220,6 +223,7 @@ def alert_argv(tool: str, text: str, error: bool) -> list[str]:
     return [
         tool,
         "--error" if error else "--info",
+        "--no-markup",
         "--title",
         "OSWarp",
         "--width",
