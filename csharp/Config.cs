@@ -131,7 +131,26 @@ namespace OSWarp
             }
             string path = ConfigPath();
             Directory.CreateDirectory(Path.GetDirectoryName(path));
-            File.WriteAllText(path, text.ToString());
+            string tmp = path + ".tmp";
+            try
+            {
+                File.WriteAllText(tmp, text.ToString());
+                if (File.Exists(path))
+                    File.Replace(tmp, path, null);
+                else
+                    File.Move(tmp, path);
+            }
+            catch (Exception)
+            {
+                try
+                {
+                    File.Delete(tmp);
+                }
+                catch (Exception)
+                {
+                }
+                throw;
+            }
         }
 
     }

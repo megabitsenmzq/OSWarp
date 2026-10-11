@@ -31,7 +31,7 @@ def firmware_marks(boot_id: str, view: FirmwareView) -> tuple[str, ...]:
 
 def parse_efibootmgr(text: str) -> FirmwareView:
     order: list[str] = []
-    entries: list[FirmwareEntry] = []
+    found: dict[str, FirmwareEntry] = {}
     for raw in text.splitlines():
         line = raw.rstrip()
         if line.startswith("BootOrder:"):
@@ -45,15 +45,14 @@ def parse_efibootmgr(text: str) -> FirmwareView:
             continue
         boot_id, star, rest = match.group(1).upper(), match.group(2), match.group(3)
         title, path = _split_title(rest)
-        entries.append(
-            FirmwareEntry(
-                boot_id=boot_id,
-                title=title,
-                path=path,
-                active=star == "*",
-                hint=_hint(title, path),
-            )
+        found[boot_id] = FirmwareEntry(
+            boot_id=boot_id,
+            title=title,
+            path=path,
+            active=star == "*",
+            hint=_hint(title, path),
         )
+    entries = [found[boot_id] for boot_id in order if boot_id in found]
     return FirmwareView(
         order=tuple(order),
         entries=tuple(entries),
@@ -125,7 +124,6 @@ def _classify(text: str) -> str:
 
 
 def _loader_file(folded: str) -> str:
-    # efibootmgr -v prints ...File(\EFI\ubuntu\shimx64.efi); drop the wrapper.
     match = re.search(r"file\(([^)]*)\)", folded)
     target = match.group(1) if match else folded
     file_name = target.rsplit("\\", 1)[-1]

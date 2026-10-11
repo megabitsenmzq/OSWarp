@@ -96,7 +96,7 @@ def resolve_target(
                 return entry
 
     # Find new entry by hint.
-    matches = [entry for entry in entries if entry.hint == hint and entry.active]
+    matches = [entry for entry in entries if entry.hint == hint]
     if len(matches) == 1:
         return matches[0]
     return None

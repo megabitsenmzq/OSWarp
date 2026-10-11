@@ -106,7 +106,7 @@ def _session(tool: str) -> int:
         show_alert(tool, str(exc), error=True)
         return 1
     if not view.entries:
-        show_alert(tool, "No firmware boot entries.", error=True)
+        show_alert(tool, "No firmware boot entries found in BootOrder.", error=True)
         return 1
     target = resolve_target(view.entries, saved_id, "Windows")
     if target is None:
