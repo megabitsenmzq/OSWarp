@@ -13,7 +13,6 @@ namespace OSWarp
     {
         public string Id = "";
         public string Title = "";
-        public string Path = "";
         public string Hint = "";
     }
 
@@ -73,7 +72,6 @@ namespace OSWarp
                         }
                     }
                 }
-            }
             return catalog;
         }
 
@@ -82,7 +80,6 @@ namespace OSWarp
             var entry = new FirmwareEntry();
             entry.Id = id;
             entry.Title = description.Length > 0 ? description : id;
-            entry.Path = path;
             entry.Hint = Hint(entry.Title, path);
             catalog.Entries.Add(entry);
         }

@@ -8,7 +8,7 @@ namespace OSWarp
 {
     static class Actions
     {
-        public static string RunBcdedit(string arguments)
+        public static void RunBcdedit(string arguments)
         {
             ProcessStartInfo start = new ProcessStartInfo();
             start.FileName = Path.Combine(Environment.SystemDirectory, "bcdedit.exe");
@@ -35,7 +35,6 @@ namespace OSWarp
                     string detail = (stderr + "\r\n" + stdout).Trim();
                     throw new IOException(detail.Length > 0 ? detail : "bcdedit failed. The boot order was not changed.");
                 }
-                return stdout;
             }
         }
 
