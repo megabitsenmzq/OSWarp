@@ -1,4 +1,4 @@
-"""Remember the chosen firmware entry and decide which one to offer."""
+"""Read and write the OSWarp config, and decide which entry to offer."""
 
 from __future__ import annotations
 
@@ -13,12 +13,8 @@ BOOT_NEXT = "bootnext"
 _BOOT_VALUES = (BOOT_ORDER, BOOT_NEXT)
 
 
-class TargetError(Exception):
-    """The settings file is present but not usable."""
-
-
 @dataclass(frozen=True)
-class TargetSettings:
+class Config:
     boot: str
     saved_id: str
 
@@ -30,20 +26,19 @@ def config_home() -> Path:
     return Path.home() / ".config"
 
 
-def target_config_path() -> Path:
-    return config_home() / "oswarp" / "target"
+def config_path() -> Path:
+    return config_home() / "oswarp" / "config"
 
 
-def load_target(path: Path) -> TargetSettings:
-    """Read boot= and id=."""
+def load_config(path: Path) -> Config:
+    """Read boot= and id= from the config file."""
     try:
         text = path.read_text(encoding="utf-8")
-    except FileNotFoundError:
-        return TargetSettings(boot="", saved_id="")
-    except (OSError, UnicodeError) as exc:
-        raise TargetError(_settings_error(path, str(exc))) from None
+    except (OSError, UnicodeError):
+        return Config(boot="", saved_id="")
     if text.endswith("\n"):
         text = text[:-1]
+
     lines = []
     for line in text.split("\n"):
         line = line.strip()
@@ -51,36 +46,32 @@ def load_target(path: Path) -> TargetSettings:
             continue
         lines.append(line)
     if not lines:
-        return TargetSettings(boot="", saved_id="")
-    if len(lines) == 1 and "=" not in lines[0]:
-        try:
-            return TargetSettings(boot="", saved_id=check_boot_id(lines[0]))
-        except ValueError:
-            raise TargetError(_settings_error(path)) from None
+        return Config(boot="", saved_id="")
+
     boot = ""
     saved_id = ""
     seen: set[str] = set()
     for line in lines:
         if "=" not in line:
-            raise TargetError(_settings_error(path))
+            return Config(boot="", saved_id="")
         key, value = line.split("=", 1)
         if key in seen or key not in ("boot", "id"):
-            raise TargetError(_settings_error(path))
+            return Config(boot="", saved_id="")
         seen.add(key)
         if key == "boot":
             value = value.lower()
             if value not in _BOOT_VALUES:
-                raise TargetError(_settings_error(path))
+                return Config(boot="", saved_id="")
             boot = value
         else:
             try:
                 saved_id = check_boot_id(value)
             except ValueError:
-                raise TargetError(_settings_error(path)) from None
-    return TargetSettings(boot=boot, saved_id=saved_id)
+                return Config(boot="", saved_id="")
+    return Config(boot=boot, saved_id=saved_id)
 
 
-def save_target(path: Path, boot: str, saved_id: str) -> None:
+def save_config(path: Path, boot: str, saved_id: str) -> None:
     if boot not in _BOOT_VALUES:
         raise ValueError(boot)
     lines = ["boot=" + boot]
@@ -93,24 +84,18 @@ def save_target(path: Path, boot: str, saved_id: str) -> None:
     os.replace(tmp, path)
 
 
-def _settings_error(path: Path, detail: str = "") -> str:
-    text = "The settings file could not be read.\n" + str(path)
-    text += "\nUse boot=bootorder or boot=bootnext."
-    if detail:
-        text += "\n" + detail
-    return text
-
-
 def resolve_target(
     entries: tuple[FirmwareEntry, ...] | list[FirmwareEntry],
     saved_id: str,
-    hint: str,
+    hint: str, # Windows
 ) -> FirmwareEntry | None:
     """Use the saved id when it is still listed. Otherwise rematch."""
     if saved_id:
         for entry in entries:
             if entry.boot_id == saved_id:
                 return entry
+
+    # Find new entry by hint.
     matches = [entry for entry in entries if entry.hint == hint and entry.active]
     if len(matches) == 1:
         return matches[0]

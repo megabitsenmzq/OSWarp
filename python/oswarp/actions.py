@@ -71,7 +71,7 @@ def reboot() -> None:
             failure = exc
     if failure is not None:
         raise failure
-    raise ActionError("shutdown was not found.")
+    raise ActionError("No tool for reboot found.")
 
 
 def _reboot_command(command: list[str]) -> None:
@@ -104,4 +104,6 @@ def _efibootmgr(*args: str) -> subprocess.CompletedProcess[str]:
     tool = shutil.which("efibootmgr")
     if tool is None:
         raise ActionError("efibootmgr was not found. Please install it: " + package_tips("efibootmgr"))
-    return subprocess.run([tool, *args], check=False, text=True, capture_output=True)
+    return subprocess.run(
+        [tool, *args], check=False, text=True, capture_output=True, errors="replace"
+    )

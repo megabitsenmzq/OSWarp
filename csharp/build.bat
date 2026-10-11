@@ -36,6 +36,6 @@ echo Built %CD%\OSWarp-arm64.exe
 exit /b 0
 
 :build
-"%CSC%" /nologo /langversion:%LANGVER% /platform:%~1 /codepage:65001 /target:winexe /utf8output /win32manifest:app.manifest /win32icon:OSWarp.ico /out:"%~2" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll Program.cs MainForm.cs FirmwareList.cs
+"%CSC%" /nologo /langversion:%LANGVER% /platform:%~1 /codepage:65001 /target:winexe /utf8output /win32manifest:app.manifest /win32icon:OSWarp.ico /out:"%~2" /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Management.dll Program.cs Boot.cs Actions.cs Prompt.cs ListForm.cs Firmware.cs Config.cs
 if errorlevel 1 exit /b 1
 exit /b 0

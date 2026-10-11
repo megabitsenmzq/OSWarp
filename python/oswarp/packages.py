@@ -1,4 +1,4 @@
-"""Command text for a missing system package."""
+"""Get tip text for a missing package."""
 
 import shutil
 
@@ -10,7 +10,7 @@ def package_tips(
     has_dnf: bool | None = None,
     has_pacman: bool | None = None,
 ) -> str:
-    """Use apt when apt-get is installed, otherwise dnf, otherwise pacman."""
+    """Get tip text for a missing package."""
     if has_apt is None:
         has_apt = shutil.which("apt-get") is not None
     if has_dnf is None:
