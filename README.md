@@ -16,10 +16,10 @@ The code has been reviewed by a human and tested on both VM and real hardware. D
 
 ## Screenshots
 
-| Linux (KDE) | Windows |
-| --- | --- |
-| <img width=200 src="assets/linux1.png"> | <img width=200 src="assets/windows1.png"> |
-| <img width=200 src="assets/linux2.png"> | <img width=200 src="assets/windows2.png"> |
+| Linux (KDE) | Linux (Gnome) | Linux (Xfce) | Windows |
+| --- | --- | --- | --- |
+| <img src="assets/linux1.png"> | <img src="assets/linux3.png"> | <img src="assets/linux5.png"> | <img src="assets/windows1.png"> |
+| <img src="assets/linux2.png"> | <img src="assets/linux4.png"> | <img src="assets/linux6.png"> | <img src="assets/windows2.png"> |
 
 ## Install
 
@@ -51,7 +51,7 @@ This tool changes the UEFI boot order or adds a one-time config when you click o
 
 Some motherboard firmware might not support changing the boot order from software. For example, some MSI motherboards have a feature called "BBS Priority" which sometimes overwrites the changes.
 
-The alert UI uses kdialog, zenity, or yad, depending on your desktop environment.
+The alert UI uses kdialog, zenity, or yad, depending on your desktop environment, to provide optimal visuals.
 
 ## Build
 
