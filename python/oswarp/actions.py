@@ -74,6 +74,14 @@ def reboot() -> None:
     raise ActionError("No tool for reboot found.")
 
 
+def reboot_firmware_setup() -> None:
+    """Reboot into the firmware setup UI."""
+    systemctl = shutil.which("systemctl")
+    if systemctl is None:
+        raise ActionError("systemctl was not found.")
+    _reboot_command([systemctl, "reboot", "--firmware-setup"])
+
+
 def _reboot_command(command: list[str]) -> None:
     try:
         result = subprocess.run(command, check=False, text=True, capture_output=True)

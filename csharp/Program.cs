@@ -8,6 +8,7 @@ namespace OSWarp
     {
         public const string MethodLabel = "Boot method…";
         public const string EntryLabel = "Boot entry…";
+        public const string SetupLabel = "Firmware setup…";
 
         [STAThread]
         static void Main()
@@ -72,6 +73,12 @@ namespace OSWarp
                         ChangeMode(chosen);
                         continue;
                     }
+                    if (action == 2)
+                    {
+                        if (Prompt.Confirm("Reboot into the firmware setup?") && RebootToFirmwareSetup())
+                            return;
+                        continue;
+                    }
                     FirmwareEntry picked = PickEntry(true);
                     if (picked != null)
                         target = picked;
@@ -95,10 +102,33 @@ namespace OSWarp
         {
             return ListForm.Ask(
                 "What do you want to change?",
-                new string[] { MethodLabel, EntryLabel },
+                new string[] { MethodLabel, EntryLabel, SetupLabel },
                 "Cancel",
                 new Size(480, 300),
                 new Size(400, 240));
+        }
+
+        static bool RebootToFirmwareSetup()
+        {
+            try
+            {
+                Firmware.RequestFirmwareSetup();
+            }
+            catch (Exception ex)
+            {
+                Prompt.Alert("Could not request the firmware setup.\n" + ex.Message);
+                return false;
+            }
+            try
+            {
+                Actions.Reboot();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Prompt.Alert("The firmware setup was requested, but the reboot did not happen.\n" + ex.Message);
+                return false;
+            }
         }
 
         static FirmwareEntry PickEntry(bool canReturn)

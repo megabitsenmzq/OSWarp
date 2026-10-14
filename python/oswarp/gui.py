@@ -11,13 +11,14 @@ import sys
 
 from oswarp.actions import ActionError, read_firmware
 from oswarp.dialogs import (
+    ask_confirm,
     confirm_argv,
     interpret_confirm,
     run_dialog,
     show_alert,
     show_list,
 )
-from oswarp.elevate import as_root
+from oswarp.elevate import FIRMWARE_SETUP, as_root
 from oswarp.firmware import FirmwareEntry, FirmwareView, firmware_marks
 from oswarp.packages import package_tips
 from oswarp.config import (
@@ -131,6 +132,14 @@ def _session(tool: str) -> int:
         if action == "boot":
             boot = _change_boot(tool, boot)
             continue
+        if action == "firmware":
+            if not ask_confirm(tool, "Reboot into the firmware setup?"):
+                continue
+            code, output = as_root(None, FIRMWARE_SETUP)
+            if code == 0:
+                return 0
+            error = output or "Did not reboot."
+            continue
         if action == "entries":
             try:
                 view = read_firmware()
@@ -148,20 +157,22 @@ def _config_menu(tool: str) -> str | None:
     rows = (
         (_CONFIG_BOOT, "Boot method…"),
         (_CONFIG_ENTRIES, "Boot entry…"),
+        (_CONFIG_FIRMWARE, "Firmware setup…"),
     )
     return show_list(tool, text, rows)
 
 
 _CONFIG_BOOT = "boot"
 _CONFIG_ENTRIES = "entries"
+_CONFIG_FIRMWARE = "firmware"
 
 
 def _ask_boot(tool: str, current: str = "") -> str | None:
     """Ask how the choice applies: permanent order or next boot only."""
     text = "Change the permanent boot order, or only the next boot?"
     rows = (
-        (BOOT_ORDER, "Permanent boot order"),
         (BOOT_NEXT, "Next boot only"),
+        (BOOT_ORDER, "Permanent boot order"),
     )
     return show_list(tool, text, rows, current=current)
 

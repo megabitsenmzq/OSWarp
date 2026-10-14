@@ -115,6 +115,11 @@ namespace OSWarp
 
         public static void Save(string boot, string savedId)
         {
+            Save(ConfigPath(), boot, savedId);
+        }
+
+        internal static void Save(string path, string boot, string savedId)
+        {
             if (boot != "bootorder" && boot != "bootnext")
                 throw new InvalidDataException("The boot setting is not valid.");
             var text = new StringBuilder();
@@ -129,7 +134,6 @@ namespace OSWarp
                 text.Append(savedId);
                 text.Append("\r\n");
             }
-            string path = ConfigPath();
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             string tmp = path + ".tmp";
             try

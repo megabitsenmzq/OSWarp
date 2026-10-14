@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Management;
 using System.Runtime.InteropServices;
@@ -270,11 +271,18 @@ namespace OSWarp
         // code page. Pick the decoding with the fewest damaged characters.
         public static string DecodeOutput(byte[] data)
         {
+            return DecodeOutput(data, Encoding.Default);
+        }
+
+        // The ANSI code page is a parameter so tests can replay byte dumps
+        // captured on machines with another system locale.
+        internal static string DecodeOutput(byte[] data, Encoding ansi)
+        {
             if (data == null || data.Length == 0)
                 return "";
             if (IsUtf16Le(data))
                 return Encoding.Unicode.GetString(data).TrimStart('\uFEFF');
-            string candidate = Encoding.Default.GetString(data);
+            string candidate = ansi.GetString(data);
             try
             {
                 string utf8 = new UTF8Encoding(false, true).GetString(data);
@@ -313,5 +321,90 @@ namespace OSWarp
             }
             return asciiNull >= 4 && asciiNull * 5 >= pairs;
         }
+
+        const string GlobalVariable = "{8be4df61-93ca-11d2-aa0d-00e098032b8c}";
+
+        // Ask the firmware to open its setup UI at the next boot
+        // (EFI_OS_INDICATIONS_BOOT_TO_FW_UI), keeping every other bit.
+        public static void RequestFirmwareSetup()
+        {
+            EnableEnvironmentPrivilege();
+            var buffer = new byte[8];
+            if (GetFirmwareEnvironmentVariableEx("OsIndicationsSupported", GlobalVariable, buffer, 8, IntPtr.Zero) < 8)
+                throw new IOException("Could not read the firmware boot indications. Error " + Marshal.GetLastWin32Error() + ".");
+            ulong supported = BitConverter.ToUInt64(buffer, 0);
+            if ((supported & 1) == 0)
+                throw new IOException("The firmware does not support opening its setup on request.");
+            ulong current = 0;
+            if (GetFirmwareEnvironmentVariableEx("OsIndications", GlobalVariable, buffer, 8, IntPtr.Zero) >= 8)
+                current = BitConverter.ToUInt64(buffer, 0);
+            byte[] payload = BitConverter.GetBytes(current | 1);
+            // Attributes: non-volatile + boot service access + runtime access.
+            if (!SetFirmwareEnvironmentVariableEx("OsIndications", GlobalVariable, payload, (uint)payload.Length, 7))
+                throw new IOException("Could not request the firmware setup. Error " + Marshal.GetLastWin32Error() + ".");
+        }
+
+        // Firmware environment variables need SeSystemEnvironmentPrivilege,
+        // which an admin token holds but keeps disabled by default.
+        static void EnableEnvironmentPrivilege()
+        {
+            using (Process current = Process.GetCurrentProcess())
+            {
+                IntPtr token;
+                if (!OpenProcessToken(current.Handle, 0x0020, out token)) // TOKEN_ADJUST_PRIVILEGES
+                    throw new IOException("Could not open the process token. Error " + Marshal.GetLastWin32Error() + ".");
+                try
+                {
+                    var privileges = new TokenPrivileges();
+                    privileges.Count = 1;
+                    privileges.Attributes = 0x00000002; // SE_PRIVILEGE_ENABLED
+                    if (!LookupPrivilegeValue(null, "SeSystemEnvironmentPrivilege", out privileges.Luid))
+                        throw new IOException("Could not find the privilege. Error " + Marshal.GetLastWin32Error() + ".");
+                    if (!AdjustTokenPrivileges(token, false, ref privileges, 0, IntPtr.Zero, IntPtr.Zero)
+                        || Marshal.GetLastWin32Error() != 0)
+                        throw new IOException("Could not enable the privilege. Error " + Marshal.GetLastWin32Error() + ".");
+                }
+                finally
+                {
+                    CloseHandle(token);
+                }
+            }
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct Luid
+        {
+            public uint LowPart;
+            public int HighPart;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct TokenPrivileges
+        {
+            public int Count;
+            public Luid Luid;
+            public int Attributes;
+        }
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        static extern bool OpenProcessToken(IntPtr process, uint access, out IntPtr token);
+
+        [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        static extern bool LookupPrivilegeValue(string system, string name, out Luid luid);
+
+        [DllImport("advapi32.dll", SetLastError = true)]
+        static extern bool AdjustTokenPrivileges(
+            IntPtr token, bool disableAll, ref TokenPrivileges next, int size, IntPtr previous, IntPtr adjusted);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool CloseHandle(IntPtr handle);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        static extern uint GetFirmwareEnvironmentVariableEx(
+            string name, string guid, byte[] buffer, uint size, IntPtr attributes);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        static extern bool SetFirmwareEnvironmentVariableEx(
+            string name, string guid, byte[] value, uint size, uint attributes);
     }
 }

@@ -8,7 +8,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-from oswarp.actions import ActionError, clear_bootnext, reboot, set_boot_order, set_bootnext
+from oswarp.actions import (
+    ActionError,
+    clear_bootnext,
+    reboot,
+    reboot_firmware_setup,
+    set_boot_order,
+    set_bootnext,
+)
 from oswarp.config import (
     BOOT_NEXT,
     BOOT_ORDER,
@@ -16,9 +23,12 @@ from oswarp.config import (
     save_config,
 )
 
+FIRMWARE_SETUP = "firmwaresetup"
 
-def as_root(boot_id: str, boot: str) -> tuple[int, str]:
-    save_note = _save_choice(boot_id, boot)
+
+def as_root(boot_id: str | None, boot: str) -> tuple[int, str]:
+    # A firmware setup reboot carries no boot id and does not save a choice.
+    save_note = "" if boot == FIRMWARE_SETUP else _save_choice(boot_id, boot)
     if os.geteuid() == 0:
         code, output = _run_commit(boot_id, boot)
     else:
@@ -30,11 +40,12 @@ def as_root(boot_id: str, boot: str) -> tuple[int, str]:
     return code, output
 
 
-def _elevate_commit(boot_id: str, boot: str) -> tuple[int, str]:
+def _elevate_commit(boot_id: str | None, boot: str) -> tuple[int, str]:
     try:
         helper = helper_path()
         ensure_executable(helper)
-        command = elevate_command(helper, [boot_id, boot], pkexec=pkexec_bin())
+        args = [boot] if boot_id is None else [boot_id, boot]
+        command = elevate_command(helper, args, pkexec=pkexec_bin())
     except SystemExit as exc:
         return 1, str(exc)
     try:
@@ -46,7 +57,10 @@ def _elevate_commit(boot_id: str, boot: str) -> tuple[int, str]:
     )
 
 
-def _save_choice(boot_id: str, boot: str) -> str:
+def _save_choice(boot_id: str | None, boot: str) -> str:
+    # Only the firmware setup mode passes None, and it never reaches here.
+    if boot_id is None:
+        raise ValueError("boot_id is required for " + boot)
     try:
         save_config(config_path(), boot, boot_id)
     except OSError as exc:
@@ -68,7 +82,7 @@ def _explain_root(output: str, code: int = 1) -> str:
     return text
 
 
-def _run_commit(boot_id: str, boot: str) -> tuple[int, str]:
+def _run_commit(boot_id: str | None, boot: str) -> tuple[int, str]:
     import io
     from contextlib import redirect_stderr, redirect_stdout
 
@@ -87,8 +101,14 @@ def _run_commit(boot_id: str, boot: str) -> tuple[int, str]:
     return code, text
 
 
-def commit(boot_id: str, boot: str) -> int:
-    """Change the chosen firmware setting, then reboot."""
+def commit(boot_id: str | None, boot: str) -> int:
+    if boot == FIRMWARE_SETUP:
+        try:
+            reboot_firmware_setup()
+        except ActionError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        return 0
     if boot == BOOT_NEXT:
         try:
             set_bootnext(boot_id)

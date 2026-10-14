@@ -4,7 +4,7 @@ set -euo pipefail
 self=$(readlink -f "$0")
 cd "$(dirname "$self")"
 if [ "$(id -u)" -ne 0 ]; then
-  exec sudo --preserve-env=XDG_CURRENT_DESKTOP,XDG_RUNTIME_DIR,DBUS_SESSION_BUS_ADDRESS "$self" "$@"
+  exec sudo --preserve-env=XDG_RUNTIME_DIR,DBUS_SESSION_BUS_ADDRESS "OSWARP_DESKTOP=${XDG_CURRENT_DESKTOP:-}" "$self" "$@"
 fi
 
 install_pkgs() {
@@ -42,7 +42,7 @@ if ! command -v pkexec >/dev/null 2>&1; then
     need+=(polkit)
   fi
 fi
-desktop=$(printf '%s' "${XDG_CURRENT_DESKTOP:-}" | tr '[:upper:]' '[:lower:]')
+desktop=$(printf '%s' "${OSWARP_DESKTOP:-${XDG_CURRENT_DESKTOP:-}}" | tr '[:upper:]' '[:lower:]')
 case ":${desktop}:" in
   *:kde:*)
     command -v kdialog >/dev/null 2>&1 || need+=(kdialog)

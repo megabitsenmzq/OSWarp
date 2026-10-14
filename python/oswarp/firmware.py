@@ -127,4 +127,9 @@ def _loader_file(folded: str) -> str:
     match = re.search(r"file\(([^)]*)\)", folded)
     target = match.group(1) if match else folded
     file_name = target.rsplit("\\", 1)[-1]
-    return file_name.split(" ", 1)[0]
+    file_name = file_name.split(" ", 1)[0]
+    # efibootmgr glues optional data (hex) right onto the file path without a separator.
+    marker = file_name.find(".efi")
+    if marker >= 0:
+        file_name = file_name[:marker + 4]
+    return file_name

@@ -8,6 +8,7 @@ mkdir "$stage/OSWarp"
 rsync -a \
   --exclude '__pycache__/' \
   --exclude 'tests/' \
+  --exclude '.pytest_cache/' \
   --exclude '*.pyc' \
   --exclude '.DS_Store' \
   "$root/python/" "$stage/OSWarp/"

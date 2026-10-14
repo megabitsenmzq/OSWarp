@@ -241,5 +241,65 @@ def run_dialog(argv: list[str]) -> tuple[int, str, str]:
     return result.returncode, result.stdout or "", (result.stderr or "").strip()
 
 
+def ask_confirm(tool: str, text: str) -> bool:
+    code, _stdout, stderr = run_dialog(_ask_confirm_argv(tool, text))
+    if code == 127:
+        show_alert(tool, stderr or "Could not open the dialog.", error=True)
+        return False
+    return code == 0
+
+
+def _ask_confirm_argv(tool: str, text: str) -> list[str]:
+    name = _tool_name(tool)
+    if name == "kdialog":
+        return [
+            tool,
+            "--title",
+            "OSWarp",
+            *_icon_args(tool),
+            "--yes-label",
+            _REBOOT_LABEL,
+            "--no-label",
+            "Cancel",
+            "--yesno",
+            text,
+        ]
+    if name == "yad":
+        return [
+            tool,
+            "--title",
+            "OSWarp",
+            *_icon_args(tool),
+            "--width",
+            "420",
+            "--center",
+            "--no-markup",
+            "--image",
+            "dialog-question",
+            "--button",
+            _REBOOT_LABEL + ":0",
+            "--button",
+            "Cancel:1",
+            "--text",
+            text,
+        ]
+    return [
+        tool,
+        "--question",
+        "--no-markup",
+        "--title",
+        "OSWarp",
+        *_icon_args(tool),
+        "--width",
+        "420",
+        "--ok-label",
+        _REBOOT_LABEL,
+        "--cancel-label",
+        "Cancel",
+        "--text",
+        text,
+    ]
+
+
 def _tool_name(tool: str) -> str:
     return Path(tool).name

@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import sys
 
-from oswarp.elevate import commit
+from oswarp.elevate import FIRMWARE_SETUP, commit
 from oswarp.config import BOOT_NEXT, BOOT_ORDER
 
 
@@ -29,9 +29,12 @@ def _requested_dialog(args: list[str]) -> str | None:
     return None
 
 
-def _pkexec_boot(args: list[str]) -> tuple[str, str] | None:
+def _pkexec_boot(args: list[str]) -> tuple[str | None, str] | None:
     """Make sure called by pkexec. uid=0(root), has env, has args."""
-    if os.geteuid() == 0 and os.environ.get("PKEXEC_UID") and len(args) == 2:
-        if args[1] in (BOOT_ORDER, BOOT_NEXT):
-            return args[0], args[1]
+    if os.geteuid() != 0 or not os.environ.get("PKEXEC_UID"):
+        return None
+    if len(args) == 1 and args[0] == FIRMWARE_SETUP:
+        return None, args[0]
+    if len(args) == 2 and args[1] in (BOOT_ORDER, BOOT_NEXT):
+        return args[0], args[1]
     return None

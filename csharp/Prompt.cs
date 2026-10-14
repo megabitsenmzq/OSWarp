@@ -33,10 +33,10 @@ namespace OSWarp
         public static string AskBoot(IntPtr owner, string current)
         {
             TaskDialogButton[] buttons = new TaskDialogButton[3];
-            buttons[0].Id = OrderChoice;
-            buttons[0].Text = "Permanent boot order";
-            buttons[1].Id = NextChoice;
-            buttons[1].Text = "Next boot only";
+            buttons[0].Id = NextChoice;
+            buttons[0].Text = "Next boot only";
+            buttons[1].Id = OrderChoice;
+            buttons[1].Text = "Permanent boot order";
             buttons[2].Id = Cancel;
             buttons[2].Text = "Cancel";
             int choice;
@@ -47,7 +47,7 @@ namespace OSWarp
                     null,
                     icon,
                     buttons,
-                    current == "bootnext" ? NextChoice : OrderChoice,
+                    current == "bootorder" ? OrderChoice : NextChoice,
                     owner);
             }
             if (choice == OrderChoice)
@@ -60,6 +60,19 @@ namespace OSWarp
         public static void Alert(string text)
         {
             MessageBox.Show(text, "OSWarp", MessageBoxButtons.OK, MessageBoxIcon.None);
+        }
+
+        public static bool Confirm(string instruction)
+        {
+            TaskDialogButton[] buttons = new TaskDialogButton[2];
+            buttons[0].Id = Reboot;
+            buttons[0].Text = "Reboot";
+            buttons[1].Id = Cancel;
+            buttons[1].Text = "Cancel";
+            using (Icon icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath))
+            {
+                return AskWithIcon(instruction, null, icon, buttons, Reboot, IntPtr.Zero) == Reboot;
+            }
         }
 
         static int AskWithIcon(
