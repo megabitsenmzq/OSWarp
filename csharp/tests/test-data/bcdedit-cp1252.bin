@@ -1,0 +1,50 @@
+
+Firmware Boot Manager
+---------------------
+identifier              {fwbootmgr}
+displayorder            {bootmgr}
+                        {52c85842-c61a-11f1-9f1f-806e6f6e6963}
+                        {1ae51da5-f27f-11ef-9597-9ff7ad329ef5}
+                        {1ae51da4-f27f-11ef-9597-9ff7ad329ef5}
+                        {1ae51da7-f27f-11ef-9597-9ff7ad329ef5}
+                        {1ae51da6-f27f-11ef-9597-9ff7ad329ef5}
+
+Windows Boot Manager
+--------------------
+identifier              {bootmgr}
+device                  partition=\Device\HarddiskVolume1
+path                    \EFI\Microsoft\Boot\bootmgfw.efi
+description             Windows Boot Manager
+locale                  en-US
+inherit                 {globalsettings}
+default                 {current}
+resumeobject            {1ae51da8-f27f-11ef-9597-9ff7ad329ef5}
+displayorder            {current}
+timeout                 30
+
+Firmware Application (101fffff)
+-------------------------------
+identifier              {1ae51da4-f27f-11ef-9597-9ff7ad329ef5}
+description             EFI VMware Virtual NVME Namespace (NSID 1)
+
+Firmware Application (101fffff)
+-------------------------------
+identifier              {1ae51da5-f27f-11ef-9597-9ff7ad329ef5}
+description             EFI VMware Virtual SATA CDROM Drive (1.0)
+
+Firmware Application (101fffff)
+-------------------------------
+identifier              {1ae51da6-f27f-11ef-9597-9ff7ad329ef5}
+description             EFI Network
+
+Firmware Application (101fffff)
+-------------------------------
+identifier              {1ae51da7-f27f-11ef-9597-9ff7ad329ef5}
+description             EFI Internal Shell (Unsupported option)
+
+Firmware Application (101fffff)
+-------------------------------
+identifier              {52c85842-c61a-11f1-9f1f-806e6f6e6963}
+device                  partition=\Device\HarddiskVolume1
+path                    \EFI\fedora\shimaa64.efi
+description             Fedora

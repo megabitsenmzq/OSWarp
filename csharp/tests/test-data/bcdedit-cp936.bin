@@ -1,0 +1,28 @@
+
+固件启动管理器
+---------------------
+标识符                  {fwbootmgr}
+displayorder            {bootmgr}
+                        {999c02c6-bda7-11f1-8b02-c36529558fff}
+timeout                 1
+
+Windows 启动管理器
+--------------------
+标识符                  {bootmgr}
+device                  partition=\Device\HarddiskVolume1
+path                    \EFI\Microsoft\Boot\bootmgfw.efi
+description             Windows Boot Manager
+locale                  zh-CN
+inherit                 {globalsettings}
+default                 {current}
+resumeobject            {999c02c7-bda7-11f1-8b02-c36529558fff}
+displayorder            {current}
+toolsdisplayorder       {memdiag}
+timeout                 30
+
+固件应用程序(101fffff)
+-------------------------------
+标识符                  {999c02c6-bda7-11f1-8b02-c36529558fff}
+device                  partition=\Device\HarddiskVolume1
+path                    \EFI\fedora\shimx64.efi
+description             Fedora
