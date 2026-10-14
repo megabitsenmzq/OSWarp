@@ -59,9 +59,19 @@ The alert UI uses kdialog, zenity, or yad, depending on your desktop environment
 
 There is no need to build.
 
+To run tests, use:
+
+```sh
+pip install pytest
+cd python
+python3 -m pytest tests/
+```
+
 ### Windows
 
 Make sure you have Visual Studio and run `build.bat`.
+
+To run tests, first run `build-test.bat`, then run the test executable.
 
 ## License
 
