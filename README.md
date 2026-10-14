@@ -10,7 +10,7 @@ Choose a boot method at first run. You can choose BootNext if you only want to c
 
 ## AI usage
 
-This program is made partially using AI with careful practices such as unit tests (I'll upload the tests later). It also does the job through external tools as much as possible to prevent anything from going wrong. 
+This program is made partially using AI with careful practices such as unit tests. It also does the job through external tools as much as possible to prevent anything from going wrong. 
 
 The code has been reviewed by a human and tested on both VM and real hardware. Don't use it if you don't trust it.
 
