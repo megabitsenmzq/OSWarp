@@ -16,10 +16,15 @@ The code has been reviewed by a human and tested on both VM and real hardware. D
 
 ## Screenshots
 
-| Linux (KDE) | Linux (Gnome) | Linux (Xfce) | Windows |
-| --- | --- | --- | --- |
-| <img src="assets/linux1.png"> | <img src="assets/linux3.png"> | <img src="assets/linux5.png"> | <img src="assets/windows1.png"> |
-| <img src="assets/linux2.png"> | <img src="assets/linux4.png"> | <img src="assets/linux6.png"> | <img src="assets/windows2.png"> |
+| Linux (KDE) | Linux (Gnome) |
+| --- | --- |
+| <img src="assets/linux1.png"> | <img src="assets/linux3.png"> |
+| <img src="assets/linux2.png"> | <img src="assets/linux4.png"> |
+
+| Linux (Xfce) | Windows |
+| --- | --- |
+| <img src="assets/linux5.png"> | <img src="assets/windows1.png"> |
+| <img src="assets/linux6.png"> | <img src="assets/windows2.png"> |
 
 ## Install
 
