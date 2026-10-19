@@ -13,7 +13,7 @@ OSWarp is a shortcut for rebooting between installed operating systems. It is es
 - Warp to UEFI settings.
 - Works alongside GRUB or other bootloaders.
 
-# Why?
+## Why?
 
 I made OSWarp because I'm using a Bluetooth keyboard. Since connecting it to the system while in the GRUB menu is tedious, I decided to make something like this. Since I'm a macOS developer, a "Boot Drive" panel in the OS is very natural to me. And I don't want to run a command every time I want to do such a simple task.
 
