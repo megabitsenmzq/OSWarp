@@ -4,9 +4,14 @@
 
 [![Python 3.7+](https://img.shields.io/badge/Python-3.7+-3776AB?logo=python&logoColor=white)](https://www.python.org/) [![C#](https://img.shields.io/badge/C%23-.NET%20Framework%204.5+-239120?logo=csharp&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/) [![MIT License](https://img.shields.io/badge/License-MIT-blue)](LICENSE) ![Partially AI Coded](https://img.shields.io/badge/Partially%20AI%20Coded-Human%20Reviewed-A855F7)
 
-OSWarp is a shortcut for rebooting between installed operating systems. It is especially useful if you dual-boot Windows and Linux. It can also help when the Linux install doesn't recognize Windows and add it to the GRUB menu.
+OSWarp is a shortcut for rebooting between installed operating systems. It is especially useful if you dual-boot Windows and Linux.
 
-Choose a boot method at first run. You can choose BootNext if you only want to change the boot once, or BootOrder to change it permanently. You can also change it later.
+- Warp to another OS. Windows or Linux.
+- Recognize the right boot entry automatically.
+- Change boot order permanently or only one time.
+- Save your boot entry selection for next time.
+- Warp to UEFI settings.
+- Works alongside GRUB or other bootloaders.
 
 ## AI usage
 
