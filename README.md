@@ -13,23 +13,22 @@ OSWarp is a shortcut for rebooting between installed operating systems. It is es
 - Warp to UEFI settings.
 - Works alongside GRUB or other bootloaders.
 
+# Why?
+
+I made OSWarp because I'm using a Bluetooth keyboard. Since connecting it to the system while in the GRUB menu is tedious, I decided to make something like this. Since I'm a macOS developer, a "Boot Drive" panel in the OS is very natural to me. And I don't want to run a command every time I want to do such a simple task.
+
 ## AI usage
 
-This program is made partially using AI with careful practices such as unit tests. It also does the job through external tools as much as possible to prevent anything from going wrong. 
+This program was partially written with AI, using careful practices such as unit tests. It also relies on external tools as much as possible to prevent anything from going wrong. 
 
-The code has been reviewed by a human and tested on both VM and real hardware. Don't use it if you don't trust it.
+I reviewed all the code, and it's tested on both a VM and real hardware. Don't use it if you don't trust it.
 
 ## Screenshots
 
-| Linux (KDE) | Linux (Gnome) |
+| Linux (KDE) | Windows |
 | --- | --- |
-| <img width=300 src="assets/linux1.png"> | <img width=300 src="assets/linux3.png"> |
-| <img width=300 src="assets/linux2.png"> | <img width=300 src="assets/linux4.png"> |
-
-| Linux (Xfce) | Windows |
-| --- | --- |
-| <img width=300 src="assets/linux5.png"> | <img width=300 src="assets/windows1.png"> |
-| <img width=300 src="assets/linux6.png"> | <img width=300 src="assets/windows2.png"> |
+| <img width=300 src="assets/linux1.png"> | <img width=300 src="assets/windows1.png"> |
+| <img width=300 src="assets/linux2.png"> | <img width=300 src="assets/windows2.png"> |
 
 ## Install
 
@@ -62,6 +61,10 @@ This tool changes the UEFI boot order or adds a one-time config when you click o
 Some motherboard firmware might not support changing the boot order from software. For example, some MSI motherboards have a feature called "BBS Priority" which sometimes overwrites the changes.
 
 The alert UI uses kdialog, zenity, or yad, depending on your desktop environment, to provide optimal visuals.
+
+| Linux (Xfce) | Linux (Gnome) |
+| --- | --- |
+| <img width=300 src="assets/linux5.png"> | <img width=300 src="assets/linux3.png"> |
 
 ## Build
 
