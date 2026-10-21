@@ -58,7 +58,7 @@ Download the Windows release and put the single "OSWarp.exe" file wherever you l
 
 This tool changes the UEFI boot order or adds a one-time config when you click on "Reboot". On Linux, it uses efibootmgr. On Windows, it uses bcdedit. It can recognize the right boot entry and select it for you if you are dual-booting Windows and Linux. You can also choose one manually.
 
-Some motherboard firmware might not support changing the boot order from software. For example, some MSI motherboards have a feature called "BBS Priority" which sometimes overwrites the changes.
+Some motherboard firmware might not support changing the boot order from software or might overwrite the changes.
 
 The alert UI uses kdialog, zenity, or yad, depending on your desktop environment, to provide optimal visuals.
 
